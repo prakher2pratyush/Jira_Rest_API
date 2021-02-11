@@ -3,7 +3,7 @@ import dateutil.parser
 import csv
 
 # Initialization
-jira = JIRA(basic_auth=('praprakher', 'Test@123'), options={'server': 'http://localhost:8080/'})
+jira = JIRA(basic_auth=('praprakher', 'XXXXXXXX'), options={'server': 'http://localhost:8080/'})
 
 # Create CSV
 with open('jiradump.csv', 'wb') as f:
