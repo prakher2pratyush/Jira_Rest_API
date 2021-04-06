@@ -1,0 +1,484 @@
+from jira import JIRA
+import csv
+
+# Initialization
+jira = JIRA(basic_auth=('XXXXXXX', 'XXXXXXX'), options={'server': 'http://localhost:8080/'})
+
+# Create CSV
+with open('jiradump.csv', 'wb') as f:
+    thewriter = csv.writer(f, quoting=csv.QUOTE_ALL)
+    thewriter.writerow(
+        ['ID', 'ISSUENUM', 'ISSUE_TYPE', 'KEY', 'SUMMARY', 'ASSIGNEE', 'REPORTER', 'PRIORITY', 'STATUS', 'CREATED', 
+         'UPDATED', 'RESOLUTION', 'Issue_link', 'Go-live Date', 'RAG', 'Domains', 'Countries', 'Clarity ID', 
+         'Components', 'Labels', 'PSM reference ID', 'Cost', 'Delivery Stage', 'Demand Name', 'Executive Summary'])
+
+    # JQL to fetch issues
+    # for issue in jira.search_issues('project in (Dev,TEST) order by Created ASC'):
+    for issue in jira.search_issues('key in (TEST-10,TEST-9)'):
+
+        # System Fields initial values
+
+        # ID
+        issue_id = issue.id
+
+        # ISSUENUM
+        issue_num = issue.key.split("-")[1]
+
+        # ISSUE_TYPE
+        issue_type = issue.fields.issuetype
+
+        # KEY
+        key = issue.key
+
+        # SUMMARY
+        summary = issue.fields.summary
+
+        # ASSIGNEE
+        assignee = issue.fields.assignee
+
+        # REPORTER
+        reporter = issue.fields.reporter
+        
+        # PRIORITY
+        priority = issue.fields.priority
+        
+        # STATUS
+        status = issue.fields.status
+
+        # CREATED
+        created = issue.fields.created
+        
+        # UPDATED
+        updated = issue.fields.updated
+        
+        # RESOLUTION
+        resolution = issue.fields.resolution
+
+        # Components
+        components = ''
+        try:
+            components_array = issue.fields.components
+            for component in components_array:
+                if components == '':
+                    components = component.name
+                else:
+                    components = components + ',' + component.name
+        except:
+            print('components')
+
+        # Labels
+        labels = ''
+        try:
+            labels_array = issue.fields.labels
+            for label in labels_array:
+                if labels == '':
+                    labels = label
+                else:
+                    labels = labels + ',' + label
+            labels_init = labels
+        except:
+            print('labels')
+
+        # Issue_link
+        linkedissue = ''
+        try:
+            for link in issue.fields.issuelinks:
+                if linkedissue == '':
+                    if hasattr(link, 'outwardIssue'):
+                        linkedissue = link.outwardIssue.key
+                    if hasattr(link, 'inwardIssue'):
+                        linkedissue = link.inwardIssue.key
+                else:
+                    if hasattr(link, 'outwardIssue'):
+                        linkedissue = linkedissue + ',' + link.outwardIssue.key
+                    if hasattr(link, 'inwardIssue'):
+                        linkedissue = linkedissue + ',' + link.inwardIssue.key
+        except:
+            print('Issue_link')
+
+        # Custom Fields - Date Field
+
+        # Go-live Date
+        goLiveDate = ''
+        try:
+            goLiveDate = issue.fields.customfield_10300
+        except:
+            print('Go-live Date')
+
+        # Custom Fields - Normal Field
+
+        # RAG
+        rag = ''
+        try:
+            rag = issue.fields.customfield_10400
+        except:
+            print('RAG')
+
+        # Clarity ID
+        clarity_ID = ''
+        try:
+            clarity_ID = issue.fields.customfield_10202
+        except:
+            print('clarity_ID')
+
+        # PSM reference ID
+        psmReferenceId = ''
+        try:
+            psmReferenceId = issue.fields.customfield_10503
+        except:
+            print('PSM reference ID')
+
+        # Cost
+        try:
+            cost = issue.fields.customfield_10502
+        except:
+            print('Cost')
+
+        # Delivery Stage
+        try:
+            deliveryStage = issue.fields.customfield_10501
+        except:
+            print('Delivery Stage')
+
+        # Demand Name
+        try:
+            demandName = issue.fields.customfield_10500
+        except:
+            print('Demand Name')
+
+        # Executive Summary
+        try:
+            execSummary = issue.fields.customfield_10504
+        except:
+            print('Executive Summary')
+
+        # Custom Fields - Multiple Select Field
+
+        # Domains
+        domains = ''
+        try:
+            domains_array = issue.fields.customfield_10201
+            for domain in domains_array:
+                if domains == '':
+                    domains = domain.value
+                else:
+                    domains = domains + ',' + domain.value
+        except:
+            print('domains')
+
+        # Countries
+        countries = ''
+        try:
+            countries_array = issue.fields.customfield_10200
+            for country in countries_array:
+                if countries == '':
+                    countries = country.value
+                else:
+                    countries = countries + ',' + country.value
+        except:
+            print('countries')
+
+        # Fetch Issue History
+        issue = jira.issue(issue.key, expand='changelog')
+        changelog = issue.changelog
+        flag = 0
+
+        for history in reversed(changelog.histories):
+            for item in history.items:
+                updated = history.created
+                # print "Item = " + item.field
+
+                # System Fields initial values
+
+                # ID
+                if item.field == 'id' and issue.fields.created != history.created:
+                    issue_id = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    issue_id = item.fromString
+
+                # ISSUE_TYPE
+                if item.field == 'issuetype' and issue.fields.created != history.created:
+                    issue_type = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    issue_type = item.fromString
+
+                # KEY and ISSUENUM
+                if item.field == 'Key' and issue.fields.created != history.created:
+                    key = item.toString
+                    issue_num = key.split("-")[1]
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    key = item.fromString
+                    issue_num = key.split("-")[1]
+
+                # SUMMARY
+                if item.field == 'summary' and issue.fields.created != history.created:
+                    summary = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    summary = item.fromString
+
+                # ASSIGNEE
+                if item.field == 'assignee' and issue.fields.created != history.created:
+                    assignee = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    assignee = item.fromString
+
+                # REPORTER
+                if item.field == 'reporter' and issue.fields.created != history.created:
+                    reporter = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    reporter = item.fromString
+
+                # PRIORITY
+                if item.field == 'priority' and issue.fields.created != history.created:
+                    priority = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    priority = item.fromString
+
+                # STATUS
+                if item.field == 'status' and issue.fields.created != history.created:
+                    status = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    status = item.fromString
+
+                # RESOLUTION
+                if item.field == 'resolution' and issue.fields.created != history.created:
+                    resolution = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    resolution = item.fromString
+
+                # Issue_link
+                if item.field == 'Link' and issue.fields.created != history.created:
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    if linkedissue != '' and str(item.fromString).split(" ")[-1] != "None":
+                        linkedissue += "," + str(item.fromString).split(" ")[-1]
+                    elif linkedissue == '' and str(item.fromString).split(" ")[-1] != "None":
+                        linkedissue = str(item.fromString).split(" ")[-1]
+                    elif "," + str(item.to) in linkedissue and str(item.to) != "None":
+                        linkedissue = linkedissue.replace("," + str(item.to), "")
+                    elif str(item.to) + "," in linkedissue and str(item.to) != "None":
+                        linkedissue = linkedissue.replace(str(item.to) + ",", "")
+                    elif str(item.to) in linkedissue and str(item.to) != "None":
+                        linkedissue = linkedissue.replace(str(item.to), "")
+
+                # Components
+                if item.field == 'Component' and issue.fields.created != history.created:
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    if components != '' and str(item.fromString) != "None":
+                        components += "," + str(item.fromString).split(" ")[-1]
+                    elif components == '' and str(item.fromString).split(" ")[-1] != "None":
+                        components = str(item.fromString).split(" ")[-1]
+                    elif "," + str(item.toString) in components and str(item.to) != "None":
+                        components = components.replace("," + str(item.toString), "")
+                    elif str(item.toString) + "," in components and str(item.toString) != "None":
+                        components = components.replace(str(item.toString) + ",", "")
+                    elif str(item.toString) in components and str(item.toString) != "None":
+                        components = components.replace(str(item.toString), "")
+
+                # Labels
+                if item.field == 'labels' and issue.fields.created != history.created:
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    if labels != '' and str(item.fromString) != "":
+                        labels += "," + str(item.fromString).split(" ")[-1]
+                    elif labels == '' and str(item.fromString).split(" ")[-1] != "":
+                        labels = str(item.fromString).split(" ")[-1]
+                    elif "," + str(item.toString) in labels and str(item.to) != "":
+                        labels = labels.replace("," + str(item.toString), "")
+                    elif str(item.toString) + "," in labels and str(item.toString) != "":
+                        labels = labels.replace(str(item.toString) + ",", "")
+                    elif str(item.toString) in labels and str(item.toString) != "":
+                        labels = labels.replace(str(item.toString), "")
+
+                # Custom Fields - Date Field
+
+                # Go-live Date
+                if item.field == 'Go-live Date' and issue.fields.created != history.created:
+                    goLiveDate = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    goLiveDate = item.fromString
+
+                # Custom Fields - Normal Field
+
+                # RAG
+                if item.field == 'RAG' and issue.fields.created != history.created:
+                    rag = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    rag = item.fromString
+
+                # Clarity ID
+                if item.field == 'Clarity ID' and issue.fields.created != history.created:
+                    clarity_ID = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    clarity_ID = item.fromString
+
+                # PSM reference ID
+                if item.field == 'PSM reference ID' and issue.fields.created != history.created:
+                    psmReferenceId = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    psmReferenceId = item.fromString
+
+                # Cost
+                if item.field == 'Cost' and issue.fields.created != history.created:
+                    cost = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    cost = item.fromString
+
+                # Delivery Stage
+                if item.field == 'Delivery Stage' and issue.fields.created != history.created:
+                    deliveryStage = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    deliveryStage = item.fromString
+
+                # Demand Name
+                if item.field == 'Demand Name' and issue.fields.created != history.created:
+                    demandName = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    demandName = item.fromString
+
+                # Executive Summary
+                if item.field == 'Executive Summary' and issue.fields.created != history.created:
+                    execSummary = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status,
+                         created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID,
+                         components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    execSummary = item.fromString
+
+                # Custom Fields - Multiple Select Field
+
+                # Domains
+                if item.field == 'Domains' and issue.fields.created != history.created:
+                    domains = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    domains = item.fromString
+
+                # Countries
+                if item.field == 'Countries' and issue.fields.created != history.created:
+                    countries = item.toString
+
+                    thewriter.writerow(
+                        [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created,
+                         updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+                         labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
+                    countries = item.fromString
+
+        updated = issue.fields.created
+
+        thewriter.writerow(
+            [issue_id, issue_num, issue_type, key, summary, assignee, reporter, priority, status, created, 
+             updated, resolution, linkedissue, goLiveDate, rag, domains, countries, clarity_ID, components,
+             labels, psmReferenceId, cost, deliveryStage, demandName, execSummary])
+
