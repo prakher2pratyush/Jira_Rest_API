@@ -1,0 +1,41 @@
+from jira import JIRA
+import csv
+
+# Initialization
+jira = JIRA(basic_auth=('xxx', 'xxx'), options={'server': 'http://localhost:8080/'})
+
+# JQL to fetch issues
+# for issue in jira.search_issues('project in (Dev,TEST) order by Created ASC'):
+for issue in jira.search_issues('key in (TEST-9)'):
+
+    # Remote Link
+    remote_links = ''
+    for remote_link in jira.remote_links(issue):
+        if remote_links == '':
+            remote_links += remote_link.object.title
+        else:
+            remote_links += ', ' + remote_link.object.title
+    print remote_links
+
+    # Fetch Issue History
+    issue = jira.issue(issue.key, expand='changelog')
+    changelog = issue.changelog
+
+    # Previous History
+    previous_history = ''
+    for i in range(len(changelog.histories)-1,-1,-1):
+        history = changelog.histories[i]
+        for item in history.items:
+            updated = history.created
+            if i == 0:
+                previous_history = ''
+            else:
+                previous_history = changelog.histories[i - 1].created
+
+            # Remote Links
+            if item.field == 'RemoteIssueLink' and issue.fields.created != history.created:
+                if str(item.fromString) != 'None':
+                    print (str(item.fromString).split('"')[1].split('(')[-2])
+
+                if str(item.toString) != 'None':
+                    print (str(item.toString).split('"')[1].split('(')[-2])
